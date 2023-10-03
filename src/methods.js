@@ -4,7 +4,7 @@ const mysql = require('promise-mysql')
 const fs = require('fs')
 const { nanoid } = require('nanoid')
 
-const INDEV = true
+const UNIX = false
 const DATABASE = 'persondata'
 
 async function SQLQuery ({ pool, query, withLogs = true }) {
@@ -35,7 +35,7 @@ async function initSQL () {
   }
   let pool = 0
 
-  if (INDEV === false) {
+  if (UNIX) {
     const instanceConnection = 'sg3-demos:asia-southeast2:ml-backend-mysql2'
     pool = await mysql.createPool({
       ...SQLConnectionConfig,
