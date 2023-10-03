@@ -143,7 +143,9 @@ async function StorageTestMethod (req, h) {
 }
 
 async function logsRetrieveMethod (req, h) {
-  const data = SQLQuery({ query: 'SELECT * from requestlogs' })
+  const _pool = await initSQL()
+  const data = await SQLQuery({ pool: _pool, query: 'SELECT * from requestlogs' })
+  console.log(data)
   return h.response({
     status: 'success',
     message: 'successfully retrieved logs.',

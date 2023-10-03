@@ -20,7 +20,7 @@ const routers = [
   },
   {
     method: 'GET',
-    path: '/logs/show',
+    path: '/logs',
     handler: predict.LogsRetrieve
   }
 ]
