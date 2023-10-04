@@ -4,8 +4,11 @@ const mysql = require('promise-mysql')
 const fs = require('fs')
 const { nanoid } = require('nanoid')
 
-const UNIX = false
-const DATABASE = 'persondata'
+const INSTANCECON = 'sg3-demos:asia-southeast2:ml-database'
+const UNIX = true
+const DATABASE = 'logs'
+const PASSWORD = 'ml-database'
+const BUCKET = 'ml-storage-logs'
 
 async function SQLQuery ({ pool, query, withLogs = true }) {
   let value = 0
@@ -30,16 +33,15 @@ async function SQLQuery ({ pool, query, withLogs = true }) {
 async function initSQL () {
   const SQLConnectionConfig = {
     user: 'root',
-    password: 'ml-backend-mysql2',
+    password: PASSWORD,
     database: DATABASE
   }
   let pool = 0
 
   if (UNIX) {
-    const instanceConnection = 'sg3-demos:asia-southeast2:ml-backend-mysql2'
     pool = await mysql.createPool({
       ...SQLConnectionConfig,
-      socketPath: `/cloudsql/${instanceConnection}`
+      socketPath: `/cloudsql/${INSTANCECON}`
     })
   } else {
     pool = await mysql.createPool({
@@ -68,7 +70,7 @@ async function predictSimilarity (img0, img1, threshold) {
 }
 
 async function predictionHandler (req, h) {
-  const _pool = initSQL()
+  const _pool = await initSQL()
   const { threshold = 0.5, save = '0', email = 'no-email' } = req.query
   console.log(email)
   const files = req.payload
@@ -82,7 +84,7 @@ async function predictionHandler (req, h) {
   if (save === '1') {
     console.log('Accessing Cloud Storage.')
     const storage = new Storage({ projectId: 'sg3-demos' })
-    const myBucket = storage.bucket('simple-storage-x')
+    const myBucket = storage.bucket(BUCKET)
 
     await myBucket.file(`${email}/${unique}/pic0.jpg`).save(files.file0)
     await myBucket.file(`${email}/${unique}/pic1.jpg`).save(files.file1)
@@ -127,36 +129,40 @@ async function predictionHandler (req, h) {
     query: `INSERT INTO requestlogs VALUES ('${email}', ${save}, '${execTime}', '${unique}', ${predictionStatus.threshold}, ${predictionStatus.distance_score})`
   })
 
-  return predictionStatus
-}
-
-async function StorageTestMethod (req, h) {
-  const storage = new Storage({ projectId: 'sg3-demos' })
-  const contents = await storage.bucket('simple-storage-x').file('model.json').download()
-  const jsonContent = JSON.parse(contents)
-  console.log(jsonContent)
-
-  // write
-  await storage.bucket('simple-storage-x').file('hey.txt').save('Hello There, worlderx!')
-
-  return jsonContent
+  return h.response({
+    ...predictionStatus,
+    GCP_logs: {
+      unique_id: unique,
+      authenticated_url_pic0: `https://storage.cloud.google.com/${BUCKET}/${email}/${unique}/pic0.jpg`,
+      authenticated_url_pic1: `https://storage.cloud.google.com/${BUCKET}/${email}/${unique}/pic0.jpg`,
+      specific_email_access: email
+    }
+  }).code(200)
 }
 
 async function logsRetrieveMethod (req, h) {
   const _pool = await initSQL()
   const data = await SQLQuery({ pool: _pool, query: 'SELECT * from requestlogs' })
-  console.log(data)
+  let put = 0
+  let err = 0
+
+  if (data === '--err--') {
+    put = { status: 'fail', message: 'failed to retrieve logs.' }
+    err = 500
+  } else {
+    put = { status: 'success', message: 'successfully retrieved logs.' }
+    err = 200
+  }
+
   return h.response({
-    status: 'success',
-    message: 'successfully retrieved logs.',
+    ...put,
     logs: data
-  })
+  }).code(err)
 }
 
 module.exports = {
   predict: {
     Predict: predictionHandler,
-    StorageTest: StorageTestMethod,
     LogsRetrieve: logsRetrieveMethod
   }
 }

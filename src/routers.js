@@ -15,11 +15,6 @@ const routers = [
   },
   {
     method: 'GET',
-    path: '/storage-test',
-    handler: predict.StorageTest
-  },
-  {
-    method: 'GET',
     path: '/logs',
     handler: predict.LogsRetrieve
   }
