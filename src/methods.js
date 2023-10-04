@@ -105,8 +105,6 @@ async function predictionHandler (req, h) {
     }
   }
 
-  fs.writeFile('test.txt', buffer0, (err) => { if (err) console.log(err) })
-
   let tensor0 = tf.node.decodeImage(buffer0, 3, 'int32', true).resizeBilinear([120, 120])
   let tensor1 = tf.node.decodeImage(buffer1, 3, 'int32', true).resizeBilinear([120, 120])
 
